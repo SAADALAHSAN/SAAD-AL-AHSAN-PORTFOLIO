@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { motion, useInView, useScroll, useTransform } from 'framer-motion';
+import { useReducedMotion } from './hooks/useReducedMotion';
 
 /**
  * 1. WordsPullUp (Staggered Word Reveal)
@@ -13,7 +14,7 @@ export const WordsPullUp = ({ text, className = "" }) => {
   return (
     <div ref={ref} className={`flex flex-wrap ${className}`}>
       {words.map((word, index) => (
-        <div key={index} className="overflow-hidden inline-block mr-[0.2em] relative">
+        <div key={index} className="overflow-hidden inline-block mr-[0.2em] relative pb-[0.2em] -mb-[0.2em]">
           <motion.div
             initial={{ y: "120%", opacity: 0 }}
             animate={isInView ? { y: 0, opacity: 1 } : {}}
@@ -49,9 +50,9 @@ export const WordsPullUpMultiStyle = ({ segments, className = "" }) => {
   return (
     <div ref={ref} className={`flex flex-wrap ${className}`}>
       {flattenedWords.map((word, index) => (
-        <div key={index} className="overflow-hidden inline-block mr-[0.2em] relative">
+        <div key={index} className="overflow-hidden inline-block mr-[0.2em] relative pb-[0.2em] -mb-[0.2em]">
           <motion.div
-            className={word.className}
+            className={`${word.className} pb-[0.2em]`}
             initial={{ y: "120%", opacity: 0 }}
             animate={isInView ? { y: 0, opacity: 1 } : {}}
             transition={{
@@ -128,10 +129,12 @@ export const ScrollAnimatedText = ({ text, className = "" }) => {
  * Purpose: For description text and CTA buttons.
  */
 export const BasicFadeUp = ({ children, delay = 0, className = "" }) => {
+  const prefersReducedMotion = useReducedMotion();
+
   return (
     <motion.div
       className={className}
-      initial={{ y: 20, opacity: 0 }}
+      initial={prefersReducedMotion ? { opacity: 0 } : { y: 20, opacity: 0 }}
       whileInView={{ y: 0, opacity: 1 }}
       viewport={{ once: true, margin: "-10%" }}
       transition={{

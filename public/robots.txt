@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://saad-al-ahsan.vercel.app/sitemap.xml
