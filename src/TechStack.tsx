@@ -10,8 +10,8 @@ import {
   CylinderCollider,
 } from "@react-three/rapier";
 
-const sphereGeometry = new THREE.SphereGeometry(1, 28, 28);
-const spheresData = [...Array(30)].map(() => ({
+const sphereGeometry = new THREE.SphereGeometry(1, 16, 16);
+const spheresData = [...Array(20)].map(() => ({
   scale: [0.7, 1, 0.8, 1, 1][Math.floor(Math.random() * 5)],
 }));
 

@@ -60,6 +60,35 @@ const postsData = [
   }
 ];
 
+const LazyVideo = ({ src, className, opacity = 1, style = {} }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const isInView = useInView(videoRef, { margin: "20%" });
+
+  useEffect(() => {
+    if (videoRef.current) {
+      if (isInView) {
+        videoRef.current.play().catch(err => console.warn("Video play failed:", err));
+      } else {
+        videoRef.current.pause();
+      }
+    }
+  }, [isInView]);
+
+  return (
+    <video
+      ref={videoRef}
+      loop
+      muted
+      playsInline
+      preload="none"
+      className={`${className} transition-opacity duration-1000 ${isInView ? 'opacity-100' : 'opacity-0'}`}
+      style={{ ...style, opacity: isInView ? opacity : 0 }}
+    >
+      <source src={src} type="video/mp4" />
+    </video>
+  );
+};
+
 export default function App() {
   const [hasScrolled, setHasScrolled] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -250,15 +279,11 @@ export default function App() {
       {/* ABOUT SECTION */}
       <section id="about" className="section-border-reveal relative py-24 sm:py-32 overflow-hidden border-t border-white/10">
         {/* Background Video Layer */}
-        <video 
-          autoPlay 
-          loop 
-          muted 
-          playsInline 
-          className="absolute inset-0 w-full h-full object-cover z-0 opacity-40"
-        >
-          <source src={aboutVideo} type="video/mp4" />
-        </video>
+        <LazyVideo 
+          src={aboutVideo} 
+          className="absolute inset-0 w-full h-full object-cover z-0" 
+          opacity={0.4}
+        />
         <div className="absolute inset-0 z-10 bg-gradient-to-b from-black via-black/20 to-black pointer-events-none" />
         
         <div className="relative px-6 sm:px-12 max-w-6xl mx-auto z-20">
@@ -536,16 +561,12 @@ export default function App() {
       {/* EDUCATION SECTION */}
       <section id="education" className="section-border-reveal relative pt-32 pb-24 sm:pt-40 sm:pb-32 overflow-hidden border-t border-white/10">
         {/* Background Video Layer */}
-        <video 
-          autoPlay 
-          loop 
-          muted 
-          playsInline 
-          className="absolute left-0 right-0 w-full h-[170%] object-cover z-0 opacity-30"
+        <LazyVideo 
+          src={skillsVideo} 
+          className="absolute left-0 right-0 w-full h-[170%] object-cover z-0" 
+          opacity={0.3}
           style={{ bottom: '0', top: 'auto' }}
-        >
-          <source src={skillsVideo} type="video/mp4" />
-        </video>
+        />
         <div className="absolute inset-0 z-10 bg-gradient-to-b from-black via-black/10 via-transparent via-transparent to-black pointer-events-none" />
 
         <div className="relative px-6 sm:px-12 max-w-6xl mx-auto z-20">
@@ -639,15 +660,11 @@ export default function App() {
       {/* FOOTER / CONTACT */}
       <footer id="contact" className="relative pt-24 pb-16 sm:pt-32 overflow-hidden">
         {/* Background Video Layer */}
-        <video 
-          autoPlay 
-          loop 
-          muted 
-          playsInline 
-          className="absolute inset-0 w-full h-full object-cover z-0 opacity-50"
-        >
-          <source src={footerVideo} type="video/mp4" />
-        </video>
+        <LazyVideo 
+          src={footerVideo} 
+          className="absolute inset-0 w-full h-full object-cover z-0" 
+          opacity={0.5}
+        />
         <div className="absolute inset-0 z-10 bg-gradient-to-t from-black via-black/40 to-black pointer-events-none" />
 
         <div className="relative px-6 sm:px-12 max-w-4xl mx-auto z-20 text-center flex flex-col items-center">
