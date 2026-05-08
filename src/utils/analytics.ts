@@ -2,7 +2,13 @@
  * Utility for tracking events and page views with Google Analytics 4.
  */
 
-export const trackPageView = (path) => {
+declare global {
+  interface Window {
+    gtag?: (...args: any[]) => void;
+  }
+}
+
+export const trackPageView = (path: string) => {
   if (window.gtag) {
     window.gtag('event', 'page_view', {
       page_path: path,
@@ -17,8 +23,9 @@ export const trackPageView = (path) => {
  * @param {string} eventName 
  * @param {object} params 
  */
-export const trackEvent = (eventName, params = {}) => {
+export const trackEvent = (eventName: string, params: object = {}) => {
   if (window.gtag) {
     window.gtag('event', eventName, params);
   }
 };
+

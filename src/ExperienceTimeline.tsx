@@ -66,6 +66,14 @@ const NODE_POSITIONS = [
 export default function ExperienceTimeline() {
   const sectionRef = useRef<HTMLElement>(null);
   const pathRef = useRef<SVGPathElement>(null);
+  const [isMobile, setIsMobile] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 640);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useLayoutEffect(() => {
     const ctx = gsap.context(() => {
@@ -105,9 +113,9 @@ export default function ExperienceTimeline() {
 
         // 1. Dot glows red
         tl.to(dotEl, {
-          backgroundColor: "#fdba74",
-          borderColor: "#fdba74",
-          boxShadow: "0 0 20px 5px rgba(253, 186, 116, 0.9), 0 0 45px 15px rgba(253, 186, 116, 0.6)",
+          backgroundColor: "#eab676",
+          borderColor: "#eab676",
+          boxShadow: "0 0 20px 5px rgba(234, 182, 118, 0.9), 0 0 45px 15px rgba(234, 182, 118, 0.6)",
           scale: 1.3,
           duration: 0.4,
           ease: "power2.out",
@@ -168,7 +176,7 @@ export default function ExperienceTimeline() {
         >
           {/* Background faint path (always visible) */}
           <path
-            d={CURVE_PATH}
+            d={isMobile ? "M 400,0 C 400,80 280,100 280,180 C 280,260 520,280 520,360 C 520,440 280,460 280,540 C 280,620 520,640 520,720 C 520,800 400,820 400,900" : CURVE_PATH}
             stroke="rgba(255, 255, 255, 0.05)"
             strokeWidth="2"
             strokeDasharray="8 8"
@@ -177,10 +185,10 @@ export default function ExperienceTimeline() {
           {/* Animated drawn path */}
           <path
             ref={pathRef}
-            d={CURVE_PATH}
-            stroke="rgba(253, 186, 116, 0.9)"
+            d={isMobile ? "M 400,0 C 400,80 280,100 280,180 C 280,260 520,280 520,360 C 520,440 280,460 280,540 C 280,620 520,640 520,720 C 520,800 400,820 400,900" : CURVE_PATH}
+            stroke="rgba(234, 182, 118, 0.9)"
             strokeWidth="3"
-            filter="drop-shadow(0 0 12px rgba(253, 186, 116, 0.7))"
+            filter="drop-shadow(0 0 12px rgba(234, 182, 118, 0.7))"
             fill="none"
           />
         </svg>
@@ -199,7 +207,9 @@ export default function ExperienceTimeline() {
                   ${isRight ? 'sm:flex-row' : 'sm:flex-row-reverse'}
                 `}
                 style={{
-                  left: `${(pos.cx / 800) * 100}%`,
+                  left: isMobile 
+                    ? `${index % 2 === 0 ? 35 : 65}%` // Less extreme zig-zag on mobile
+                    : `${(pos.cx / 800) * 100}%`,
                   top: `${pos.cy}px`,
                   transform: 'translate(-50%, -50%)',
                 }}
@@ -208,7 +218,7 @@ export default function ExperienceTimeline() {
                 <div className="relative flex items-center justify-center shrink-0">
                   {/* Pulse Ring */}
                   <div
-                    className={`timeline-pulse-${index} absolute w-4 h-4 rounded-full border-2 border-[#fdba74] shadow-[0_0_25px_#fdba74] opacity-100`}
+                    className={`timeline-pulse-${index} absolute w-4 h-4 rounded-full border-2 border-[#eab676] shadow-[0_0_25px_#eab676] opacity-100`}
                   />
                   {/* The Dot */}
                   <div
@@ -221,17 +231,16 @@ export default function ExperienceTimeline() {
                   className={`timeline-line-${index} hidden sm:block w-8 h-[1px] bg-white/20 shrink-0 origin-${isRight ? 'left' : 'right'}`}
                 />
 
-                {/* Info Card */}
                 <div
-                  className={`timeline-card-${index} opacity-0 group w-56 sm:w-64 p-5 mt-4 sm:mt-0 rounded-xl bg-black/90 backdrop-blur-md border border-white/20 shadow-2xl
+                  className={`timeline-card-${index} opacity-0 group w-[75vw] sm:w-64 p-4 sm:p-5 mt-4 sm:mt-0 rounded-xl bg-black/90 backdrop-blur-md border border-white/20 shadow-2xl
                     pointer-events-auto cursor-pointer
                     transition-all duration-300
                     hover:scale-105 hover:bg-black hover:z-50
                     hover:border-white/40
-                    hover:shadow-[0_0_40px_rgba(253,186,116,0.2)]
+                    hover:shadow-[0_0_40px_rgba(234, 182, 118, 0.2)]
                   `}
                 >
-                  <div className="text-[11px] text-[#fdba74] drop-shadow-[0_0_10px_rgba(253,186,116,0.9)] font-mono mb-1.5 font-bold tracking-widest uppercase">
+                  <div className="text-[11px] text-[#eab676] drop-shadow-[0_0_10px_rgba(234, 182, 118, 0.9)] font-mono mb-1.5 font-bold tracking-widest uppercase">
                     {exp.period}
                   </div>
                   <h3 className="text-base font-bold text-white mb-1 leading-tight">

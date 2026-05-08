@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import gsap from 'gsap'; // BUG 4: Added for page load animation
 import { ArrowRight, Terminal, Code, LineChart, GraduationCap, Mail, Send, Award, Download, Rss, ArrowUpRight } from 'lucide-react';
 import { FaGithub as Github, FaLinkedin as Linkedin } from 'react-icons/fa';
 import { animate, motion, AnimatePresence } from 'framer-motion';
 import LoadingScreen from './LoadingScreen';
+import Logo from './Logo';
 const TechStack = lazy(() => import('./TechStack'));
 import ExperienceTimeline from './ExperienceTimeline';
 import heroVideo from './assets/hero-video.mp4';
@@ -60,16 +62,24 @@ const postsData = [
 
 export default function App() {
   const [hasScrolled, setHasScrolled] = useState(false);
-  const [isAppLoading, setIsAppLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  useEffect(() => {
-    // Cinematic loading delay to allow assets and animations to initialize
-    const timer = setTimeout(() => {
-      setIsAppLoading(false);
-    }, 2800);
-    return () => clearTimeout(timer);
-  }, []);
+  const startHeroSequence = () => {
+    setIsLoading(false);
+    
+    // Ensure elements are present before animating
+    setTimeout(() => {
+      const tl = gsap.timeline();
+      
+      tl.to("#hero-badge", { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 0.0)
+        .to(".hero-word-1", { opacity: 1, y: 0, duration: 0.7, ease: "power3.out" }, 0.2)
+        .to(".hero-word-2", { opacity: 1, y: 0, duration: 0.7, ease: "power3.out" }, 0.4)
+        .to("#hero-desc", { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 0.7)
+        .to(".hero-cta-btn", { opacity: 1, y: 0, stagger: 0.12, duration: 0.5, ease: "power3.out" }, 1.0)
+        .to("#hero-scroll", { opacity: 1, duration: 0.4, ease: "power3.out" }, 1.3);
+    }, 100);
+  };
 
   useEffect(() => {
     if (videoRef.current) {
@@ -103,65 +113,44 @@ export default function App() {
     );
   };
 
+  // BUG 4 FIX has been replaced by the new GSAP Hero Sequence
+
   useEffect(() => {
     const handleScroll = () => {
       setHasScrolled(window.scrollY > 50);
     };
     window.addEventListener('scroll', handleScroll);
     
-    // Smooth Reveal Observer
-    const observer = new IntersectionObserver(
+    /* BUG 2 FIX: Removed IntersectionObserver that added reveal-hidden / reveal-visible.
+       Framer Motion already handles all section reveal animations.
+       Having both caused sections to animate twice (double-fire). */
+
+    /* IMPROVEMENT 5: Section Border Reveal Observer */
+    const borderObserver = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            entry.target.classList.add('reveal-visible');
+            entry.target.classList.add('border-visible');
           }
         });
       },
       { threshold: 0.1 }
     );
 
-    const sections = document.querySelectorAll('section:not(#experience)');
-    sections.forEach((section) => {
-      section.classList.add('reveal-hidden');
-      observer.observe(section);
-    });
+    const borderSections = document.querySelectorAll('.section-border-reveal');
+    borderSections.forEach((section) => borderObserver.observe(section));
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      sections.forEach((section) => observer.unobserve(section));
+      borderSections.forEach((section) => borderObserver.unobserve(section));
     };
   }, []);
 
   return (
     <>
-      <AnimatePresence>
-        {isAppLoading && (
-          <motion.div 
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0, filter: "blur(10px)", scale: 1.05 }}
-            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-            className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#050505]"
-          >
-            <div className="relative flex flex-col items-center">
-              <div className="w-16 h-16 relative mb-8">
-                <div className="absolute inset-0 border-2 border-white/10 border-t-[#fdba74] rounded-full animate-spin" style={{ animationDuration: '1s' }} />
-                <div className="absolute inset-2 border-2 border-white/5 border-l-[#fdba74] rounded-full animate-spin" style={{ animationDuration: '1.5s', animationDirection: 'reverse' }} />
-                <div className="absolute inset-4 bg-[#fdba74]/20 rounded-full animate-pulse shadow-[0_0_30px_rgba(253,186,116,0.3)]" />
-              </div>
-              
-              <div className="text-white/80 font-mono text-sm tracking-[0.3em] uppercase flex items-center gap-2">
-                Initializing <span className="animate-pulse text-[#fdba74]">...</span>
-              </div>
-              <div className="mt-4 text-white/30 font-mono text-[10px] tracking-widest uppercase">
-                Loading System Assets
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {isLoading && <LoadingScreen onComplete={startHeroSequence} />}
 
-      <div id="main-content-wrapper" className={`bg-black font-sans text-white selection:bg-white/30 overflow-x-hidden min-h-screen origin-center transition-all duration-1000 delay-500 ${isAppLoading ? 'h-screen overflow-hidden opacity-0 scale-95 blur-sm' : 'opacity-100 scale-100 blur-0'}`}>
+      <div id="main-content-wrapper" className="bg-black font-sans text-white selection:bg-white/30 overflow-x-hidden min-h-screen origin-center transition-all duration-1000">
       
       {/* HERO SECTION */}
       <section className="relative w-full h-screen min-h-[600px] overflow-hidden">
@@ -186,15 +175,13 @@ export default function App() {
 
         {/* Navigation / Header */}
         <header className="absolute top-0 w-full z-30 px-6 py-6 sm:px-12 flex justify-between items-center">
-          <div className="text-xl font-bold tracking-widest uppercase cursor-pointer relative z-10" data-cursor="icons">
-            SAAD<span className="text-white/50">.</span>
-          </div>
+          <Logo />
           
           {/* Centered Navigation */}
           <nav className="hidden md:flex absolute left-1/2 -translate-x-1/2 gap-2 text-sm font-medium tracking-wide text-white/80 bg-white/[0.02] p-1.5 rounded-full border border-white/5">
-            <a href="#about" onClick={(e) => scrollToSection(e, '#about')} className="px-5 py-2 rounded-full transition-all duration-300 hover:text-white hover:bg-white/10 hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:scale-105 border border-transparent hover:border-white/20" data-cursor="icons">About</a>
-            <a href="#experience" onClick={(e) => scrollToSection(e, '#experience')} className="px-5 py-2 rounded-full transition-all duration-300 hover:text-white hover:bg-white/10 hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:scale-105 border border-transparent hover:border-white/20" data-cursor="icons">Experience</a>
-            <a href="#skills" onClick={(e) => scrollToSection(e, '#skills')} className="px-5 py-2 rounded-full transition-all duration-300 hover:text-white hover:bg-white/10 hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:scale-105 border border-transparent hover:border-white/20" data-cursor="icons">Skills</a>
+            <a href="#about" onClick={(e) => scrollToSection(e, '#about')} className="nav-link px-5 py-2 rounded-full transition-all duration-300 hover:text-white hover:bg-white/10 hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:scale-105 border border-transparent hover:border-white/20" data-cursor="icons">About</a>
+            <a href="#experience" onClick={(e) => scrollToSection(e, '#experience')} className="nav-link px-5 py-2 rounded-full transition-all duration-300 hover:text-white hover:bg-white/10 hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:scale-105 border border-transparent hover:border-white/20" data-cursor="icons">Experience</a>
+            <a href="#skills" onClick={(e) => scrollToSection(e, '#skills')} className="nav-link px-5 py-2 rounded-full transition-all duration-300 hover:text-white hover:bg-white/10 hover:-translate-y-1 hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:scale-105 border border-transparent hover:border-white/20" data-cursor="icons">Skills</a>
           </nav>
           
           <div className="w-16 relative z-10"></div> {/* Placeholder to keep flex layout balanced if needed */}
@@ -203,34 +190,33 @@ export default function App() {
         {/* Main Content */}
         <main className="relative z-20 flex flex-col items-center justify-center h-full px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto text-center">
           
-          <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-white/90 backdrop-blur-md hover:bg-white/10 transition-colors cursor-default">
+          <div id="hero-badge" className="opacity-0 translate-y-[15px] mb-8 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-white/90 backdrop-blur-md hover:bg-white/10 transition-colors cursor-default">
             <Terminal className="h-3.5 w-3.5 text-white/70" />
             <span>Founder And Risk Taker</span>
           </div>
 
+          <div className="mb-6 text-4xl font-extrabold tracking-tight sm:text-7xl lg:text-8xl drop-shadow-2xl flex justify-center flex-wrap gap-x-4">
+            <div className="flex gap-x-4">
+              <span className="hero-word-1 opacity-0 translate-y-[40px] text-transparent bg-clip-text bg-gradient-to-b from-white to-white/70 pb-[0.1em] -mb-[0.1em]">No</span>
+              <span className="hero-word-1 opacity-0 translate-y-[40px] text-transparent bg-clip-text bg-gradient-to-b from-white to-white/70 pb-[0.1em] -mb-[0.1em]">Risk</span>
+            </div>
+            <div className="flex gap-x-4">
+              <span className="hero-word-2 opacity-0 translate-y-[40px] text-transparent bg-clip-text bg-gradient-to-b from-white/90 to-white/40 pb-[0.1em] -mb-[0.1em]">No</span>
+              <span className="hero-word-2 opacity-0 translate-y-[40px] text-transparent bg-clip-text bg-gradient-to-b from-white/90 to-white/40 pb-[0.1em] -mb-[0.1em]">Story.</span>
+            </div>
+          </div>
 
+          <p id="hero-desc" className="opacity-0 translate-y-[20px] mb-12 max-w-2xl text-lg sm:text-xl text-white/60 font-light tracking-wide leading-relaxed drop-shadow-md">
+            I have spent four years in Web3. I build real projects. I am a trader who takes calculated risks. No corporate nonsense. Just shipping products and chasing actual knowledge.
+          </p>
 
-          <WordsPullUpMultiStyle 
-            className="mb-6 text-5xl font-extrabold tracking-tight sm:text-7xl lg:text-8xl drop-shadow-2xl justify-center"
-            segments={[
-              { text: "No Risk", className: "text-transparent bg-clip-text bg-gradient-to-b from-white to-white/70" },
-              { text: "No Story.", className: "text-transparent bg-clip-text bg-gradient-to-b from-white/90 to-white/40" }
-            ]}
-          />
-
-          <BasicFadeUp delay={0.5}>
-            <p className="mb-12 max-w-2xl text-lg sm:text-xl text-white/60 font-light tracking-wide leading-relaxed drop-shadow-md">
-              I have spent four years in Web3. I build real projects. I am a trader who takes calculated risks. No corporate nonsense. Just shipping products and chasing actual knowledge.
-            </p>
-          </BasicFadeUp>
-
-          <BasicFadeUp delay={0.7} className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
+          <div id="hero-cta" className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
             <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
               <a 
                 href="#about" 
                 onClick={(e) => scrollToSection(e, '#about')} 
                 data-cursor="icons" 
-                className="group relative inline-flex items-center justify-center gap-3 rounded-full bg-white px-8 py-4 text-sm font-bold uppercase tracking-wider text-black transition-all duration-300 hover:bg-gray-200 hover:scale-105 hover:shadow-[0_0_40px_rgba(255,255,255,0.4)]"
+                className="hero-cta-btn opacity-0 translate-y-[15px] btn-ripple group relative inline-flex items-center justify-center gap-3 rounded-full bg-white px-8 py-4 text-sm font-bold uppercase tracking-wider text-black transition-all duration-300 hover:bg-gray-200 hover:scale-105 hover:shadow-[0_0_40px_rgba(255,255,255,0.4)]"
               >
                 Explore Portfolio
                 <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
@@ -238,19 +224,16 @@ export default function App() {
 
             </div>
 
-            <a href="https://github.com/SAADALAHSAN" target="_blank" rel="noreferrer" data-cursor="icons" className="group inline-flex items-center gap-4 text-sm font-semibold uppercase tracking-wider text-white transition-all hover:text-white/80 mt-4 sm:mt-0">
+            <a href="https://github.com/SAADALAHSAN" target="_blank" rel="noreferrer" data-cursor="icons" className="hero-cta-btn opacity-0 translate-y-[15px] group inline-flex items-center gap-4 text-sm font-semibold uppercase tracking-wider text-white transition-all hover:text-white/80 mt-4 sm:mt-0">
               <div className="flex h-14 w-14 items-center justify-center rounded-full border border-white/20 bg-white/5 backdrop-blur-md transition-all duration-300 group-hover:bg-white/20 group-hover:scale-110 group-hover:border-white/40">
                 <Github className="h-5 w-5 text-white" />
               </div>
               View GitHub
             </a>
-          </BasicFadeUp>
+          </div>
         </main>
 
-        <div className={`absolute bottom-0 w-full z-30 px-6 py-8 sm:px-12 flex justify-between items-end pointer-events-none transition-all duration-700 ease-in-out ${hasScrolled ? 'opacity-0 translate-y-8' : 'opacity-100 translate-y-0'}`}>
-          <div className="text-xs font-mono text-white/40 tracking-widest pointer-events-auto cursor-pointer hover:text-white transition-colors duration-300" data-cursor="icons">
-            EST. 2021 // DHAKA, BD
-          </div>
+        <div id="hero-scroll" className={`opacity-0 absolute bottom-0 w-full z-30 px-6 py-8 sm:px-12 flex justify-end items-end pointer-events-none transition-all duration-700 ease-in-out ${hasScrolled ? 'opacity-0 translate-y-8' : ''}`}>
           <div 
             className="flex flex-col items-center gap-2 pointer-events-auto cursor-pointer group" 
             data-cursor="icons" 
@@ -259,13 +242,13 @@ export default function App() {
             <span className="text-[10px] font-bold tracking-[0.3em] uppercase text-white/50 origin-bottom -rotate-90 mb-8 whitespace-nowrap group-hover:text-white transition-colors duration-300">
               Scroll to discover
             </span>
-            <div className="w-[1px] h-12 bg-gradient-to-b from-white/50 to-transparent group-hover:from-white transition-colors duration-300" />
+            <div className="w-[1px] h-12 bg-gradient-to-b from-white/50 to-transparent group-hover:from-white transition-colors duration-300 scroll-bob" />
           </div>
         </div>
       </section>
 
       {/* ABOUT SECTION */}
-      <section id="about" className="relative py-24 sm:py-32 overflow-hidden border-t border-white/10">
+      <section id="about" className="section-border-reveal relative py-24 sm:py-32 overflow-hidden border-t border-white/10">
         {/* Background Video Layer */}
         <video 
           autoPlay 
@@ -288,7 +271,7 @@ export default function App() {
                   <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden border border-white/10 shadow-[0_0_30px_rgba(255,255,255,0.05)] bg-[#050505]">
                     <img src={profilePic} alt="Saad Al Ahsan" className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500 opacity-80 hover:opacity-100" />
                   </div>
-                  <div className="absolute bottom-1 right-1 w-6 h-6 bg-[#fdba74] rounded-full border-[3px] border-black flex items-center justify-center">
+                  <div className="absolute bottom-1 right-1 w-6 h-6 bg-[#eab676] rounded-full border-[3px] border-black flex items-center justify-center">
                     <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
                   </div>
                 </BasicFadeUp>
@@ -300,14 +283,14 @@ export default function App() {
                     text="Saad Al Ahsan"
                   />
                   <BasicFadeUp delay={0.3}>
-                    <div className="h-[2px] w-12 bg-[#fdba74]/80 rounded-full" />
+                  <div className="h-[2px] w-12 bg-[#eab676]/80 rounded-full" />
                   </BasicFadeUp>
                 </div>
               </div>
 
               {/* Deep Conversation Text */}
               <div className="relative pl-6 sm:pl-8 space-y-6">
-                <div className="absolute left-0 top-2 bottom-2 w-[2px] bg-gradient-to-b from-[#fdba74]/50 via-[#fdba74]/20 to-transparent" />
+                <div className="absolute left-0 top-2 bottom-2 w-[2px] bg-gradient-to-b from-[#eab676]/50 via-[#eab676]/20 to-transparent" />
                 
                 <BasicFadeUp delay={0.4}>
                   <p className="text-white/70 font-light leading-relaxed text-sm sm:text-base">
@@ -316,7 +299,7 @@ export default function App() {
                 </BasicFadeUp>
                 <BasicFadeUp delay={0.5}>
                   <p className="text-white/60 font-light leading-relaxed text-sm sm:text-base">
-                    I am a trader who takes calculated risks and a founder who builds real projects. I have co-founded three companies and successfully launched tools like <strong className="text-[#fdba74] font-medium">PRUF Protocol</strong>, <strong className="text-[#fdba74] font-medium">Tradespy</strong>, and <strong className="text-[#fdba74] font-medium">Trollix</strong>. I do not care about corporate nonsense; I just care about shipping products that matter and chasing actual knowledge.
+                    I am a trader who takes calculated risks and a founder who builds real projects. I have co-founded three companies and successfully launched tools like <strong className="text-[#eab676] font-medium">PRUF Protocol</strong>, <strong className="text-[#eab676] font-medium">Tradespy</strong>, and <strong className="text-[#eab676] font-medium">Trollix</strong>. I do not care about corporate nonsense; I just care about shipping products that matter and chasing actual knowledge.
                   </p>
                 </BasicFadeUp>
                 <BasicFadeUp delay={0.6}>
@@ -335,7 +318,7 @@ export default function App() {
                     target="_blank"
                     rel="noreferrer"
                     data-cursor="icons"
-                    className="group inline-flex items-center gap-3 px-6 py-3 border border-white/20 bg-[#050505] text-[10px] sm:text-xs font-mono tracking-[0.2em] text-white uppercase transition-all duration-300 hover:bg-white/10 hover:border-white/40 hover:text-[#fdba74]"
+                    className="group inline-flex items-center gap-3 px-6 py-3 border border-white/20 bg-[#050505] text-[10px] sm:text-xs font-mono tracking-[0.2em] text-white uppercase transition-all duration-300 hover:bg-white/10 hover:border-white/40 hover:text-[#eab676]"
                   >
                     Download CV
                     <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-1 group-hover:-rotate-45" />
@@ -353,15 +336,15 @@ export default function App() {
               <BasicFadeUp delay={0.5}>
                 <div className="border border-white/10 rounded-2xl p-6 bg-[#050505]/80 flex items-center justify-between backdrop-blur-xl hover:border-white/20 transition-all duration-300 group">
                   <div className="flex-1 text-center border-r border-white/10">
-                    <div className="text-2xl sm:text-3xl font-bold text-white mb-1 group-hover:text-[#fdba74] transition-colors">4+</div>
+                    <div className="text-2xl sm:text-3xl font-bold text-white mb-1 group-hover:text-[#eab676] transition-colors">4+</div>
                     <div className="text-[9px] sm:text-[10px] uppercase tracking-widest text-white/40">Years in Web3</div>
                   </div>
                   <div className="flex-1 text-center border-r border-white/10">
-                    <div className="text-2xl sm:text-3xl font-bold text-white mb-1 group-hover:text-[#fdba74] transition-colors">100+</div>
+                    <div className="text-2xl sm:text-3xl font-bold text-white mb-1 group-hover:text-[#eab676] transition-colors">100+</div>
                     <div className="text-[9px] sm:text-[10px] uppercase tracking-widest text-white/40">Projects Planned</div>
                   </div>
                   <div className="flex-1 text-center">
-                    <div className="text-2xl sm:text-3xl font-bold text-white mb-1 group-hover:text-[#fdba74] transition-colors">3</div>
+                    <div className="text-2xl sm:text-3xl font-bold text-white mb-1 group-hover:text-[#eab676] transition-colors">3</div>
                     <div className="text-[9px] sm:text-[10px] uppercase tracking-widest text-white/40">Companies Built</div>
                   </div>
                 </div>
@@ -369,13 +352,13 @@ export default function App() {
 
               {/* BLOCK 2: CORE ETHOS */}
               <BasicFadeUp delay={0.6}>
-                <div className="relative border border-white/10 rounded-2xl p-6 sm:p-8 bg-[#050505]/80 backdrop-blur-xl overflow-hidden group hover:border-[#fdba74]/40 transition-all duration-500">
+                <div className="relative border border-white/10 rounded-2xl p-6 sm:p-8 bg-[#050505]/80 backdrop-blur-xl overflow-hidden group hover:border-[#eab676]/40 transition-all duration-500">
                   {/* Ambient Glow */}
-                  <div className="absolute -top-24 -right-24 w-48 h-48 bg-[#fdba74]/10 rounded-full blur-3xl group-hover:bg-[#fdba74]/20 transition-colors duration-700 pointer-events-none" />
+                  <div className="absolute -top-24 -right-24 w-48 h-48 bg-[#eab676]/10 rounded-full blur-3xl group-hover:bg-[#eab676]/20 transition-colors duration-700 pointer-events-none" />
                   
                   <div className="flex items-center gap-3 mb-6 relative z-10">
-                    <div className="h-[1px] w-8 bg-[#fdba74]/70" />
-                    <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.3em] text-[#fdba74]/90">Core Ethos</span>
+                    <div className="h-[1px] w-8 bg-[#eab676]/70" />
+                    <span className="text-[10px] sm:text-xs font-mono uppercase tracking-[0.3em] text-[#eab676]/90">Core Ethos</span>
                   </div>
                   
                   <blockquote className="text-lg sm:text-xl font-medium text-white leading-snug mb-8 relative z-10">
@@ -383,19 +366,19 @@ export default function App() {
                   </blockquote>
                   
                   <div className="grid grid-cols-2 gap-3 sm:gap-4 relative z-10">
-                    <div className="p-3 sm:p-4 rounded-xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.05] hover:border-[#fdba74]/30 transition-all duration-300">
+                    <div className="p-3 sm:p-4 rounded-xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.05] hover:border-[#eab676]/30 transition-all duration-300">
                       <div className="text-white/30 font-mono text-[9px] sm:text-[10px] mb-1 tracking-wider">01</div>
                       <div className="text-white/80 text-xs sm:text-sm font-bold tracking-wide group-hover:text-white transition-colors">Power</div>
                     </div>
-                    <div className="p-3 sm:p-4 rounded-xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.05] hover:border-[#fdba74]/30 transition-all duration-300">
+                    <div className="p-3 sm:p-4 rounded-xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.05] hover:border-[#eab676]/30 transition-all duration-300">
                       <div className="text-white/30 font-mono text-[9px] sm:text-[10px] mb-1 tracking-wider">02</div>
                       <div className="text-white/80 text-xs sm:text-sm font-bold tracking-wide group-hover:text-white transition-colors">Money</div>
                     </div>
-                    <div className="p-3 sm:p-4 rounded-xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.05] hover:border-[#fdba74]/30 transition-all duration-300">
+                    <div className="p-3 sm:p-4 rounded-xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.05] hover:border-[#eab676]/30 transition-all duration-300">
                       <div className="text-white/30 font-mono text-[9px] sm:text-[10px] mb-1 tracking-wider">03</div>
                       <div className="text-white/80 text-xs sm:text-sm font-bold tracking-wide group-hover:text-white transition-colors">Knowledge</div>
                     </div>
-                    <div className="p-3 sm:p-4 rounded-xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.05] hover:border-[#fdba74]/30 transition-all duration-300">
+                    <div className="p-3 sm:p-4 rounded-xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.05] hover:border-[#eab676]/30 transition-all duration-300">
                       <div className="text-white/30 font-mono text-[9px] sm:text-[10px] mb-1 tracking-wider">04</div>
                       <div className="text-white/80 text-xs sm:text-sm font-bold tracking-wide group-hover:text-white transition-colors">Proximity</div>
                     </div>
@@ -406,7 +389,7 @@ export default function App() {
               {/* BLOCK 3: CURRENT FOCUS LINE */}
               <BasicFadeUp delay={0.7}>
                 <div className="border border-white/10 rounded-xl px-4 py-3 sm:px-5 bg-[#050505]/80 flex items-center gap-3 backdrop-blur-xl">
-                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#fdba74] shadow-[0_0_10px_rgba(253,186,116,0.6)] animate-pulse shrink-0" />
+                  <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#eab676] shadow-[0_0_10px_rgba(234, 182, 118,0.6)] animate-pulse shrink-0" />
                   <div className="text-white/40 text-[9px] sm:text-[10px] uppercase tracking-wider shrink-0">Currently building</div>
                   <div className="text-white/10">|</div>
                   <div className="text-white/70 text-[10px] sm:text-xs font-mono truncate">Web apps, Web3 tools and trading systems</div>
@@ -423,7 +406,7 @@ export default function App() {
       <ExperienceTimeline />
 
       {/* SKILLS SECTION */}
-      <section id="skills" className="relative pt-24 pb-12 sm:pt-32 sm:pb-16 overflow-hidden border-t border-white/10">
+      <section id="skills" className="section-border-reveal relative pt-24 pb-12 sm:pt-32 sm:pb-16 overflow-hidden border-t border-white/10">
         <div className="relative px-6 sm:px-12 max-w-6xl mx-auto z-20">
           <div className="mb-16 flex items-center gap-4">
             <Code className="w-6 h-6 text-white/50" />
@@ -432,14 +415,14 @@ export default function App() {
           
           {/* INTERACTIVE TECH STACK 3D BALLS */}
           <div className="mb-16">
-            <Suspense fallback={<LoadingScreen />}>
+            <Suspense fallback={<div className="h-[400px] flex items-center justify-center text-white/40 text-xs tracking-widest uppercase font-mono animate-pulse border border-white/5 rounded-2xl bg-white/[0.01]">Loading 3D Stack...</div>}>
               <TechStack />
             </Suspense>
           </div>
           
           <CardGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {/* Card 1 */}
-            <div className="relative overflow-hidden p-8 pt-12 rounded-2xl border border-white/[0.08] bg-[#050505]/80 backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:border-[#fdba74]/40 hover:shadow-[0_20px_40px_-15px_rgba(253,186,116,0.15)] group" data-cursor="icons">
+            <div className="relative overflow-hidden p-8 pt-12 rounded-2xl border border-white/[0.08] bg-[#050505]/80 backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:border-[#eab676]/40 hover:shadow-[0_20px_40px_-15px_rgba(234, 182, 118,0.15)] group" data-cursor="icons">
               {/* Terminal Header */}
               <div className="absolute top-0 left-0 w-full px-5 py-3 bg-white/[0.02] border-b border-white/[0.05] flex items-center justify-between">
                 <div className="flex gap-2">
@@ -447,111 +430,111 @@ export default function App() {
                   <div className="w-2.5 h-2.5 rounded-full bg-white/10 group-hover:bg-[#ffbd2e] transition-colors duration-300 delay-75" />
                   <div className="w-2.5 h-2.5 rounded-full bg-white/10 group-hover:bg-[#27c93f] transition-colors duration-300 delay-150" />
                 </div>
-                <span className="text-[10px] font-mono text-white/20 group-hover:text-[#fdba74]/50 transition-colors tracking-widest uppercase">sys.01</span>
+                <span className="text-[10px] font-mono text-white/20 group-hover:text-[#eab676]/50 transition-colors tracking-widest uppercase">sys.01</span>
               </div>
               
               <div className="relative z-10">
-                <Terminal className="w-8 h-8 text-white/30 group-hover:text-[#fdba74] transition-all duration-500 mb-6 group-hover:scale-110 drop-shadow-md" />
+                <Terminal className="w-8 h-8 text-white/30 group-hover:text-[#eab676] transition-all duration-500 mb-6 group-hover:scale-110 drop-shadow-md" />
                 <h3 className="text-lg font-bold mb-4 tracking-wide text-white/90 group-hover:text-white transition-colors">Programming</h3>
                 
                 <div className="font-mono text-xs sm:text-sm">
                   <div className="flex items-start gap-3">
-                    <span className="text-[#fdba74]/60 font-bold mt-0.5">{">_"}</span>
+                    <span className="text-[#eab676]/60 font-bold mt-0.5">{">_"}</span>
                     <span className="text-white/50 leading-relaxed group-hover:text-white/80 transition-colors">
                       Java, Python, Node.js, HTML, AI Infrastructure, Cloud Migration, Cybersecurity, Automated Bots.
                     </span>
                   </div>
                 </div>
               </div>
-              <div className="absolute inset-0 bg-gradient-to-br from-[#fdba74]/0 via-[#fdba74]/5 to-[#fdba74]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-br from-[#eab676]/0 via-[#eab676]/5 to-[#eab676]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
             </div>
 
             {/* Card 2 */}
-            <div className="relative overflow-hidden p-8 pt-12 rounded-2xl border border-white/[0.08] bg-[#050505]/80 backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:border-[#fdba74]/40 hover:shadow-[0_20px_40px_-15px_rgba(253,186,116,0.15)] group" data-cursor="icons">
+            <div className="relative overflow-hidden p-8 pt-12 rounded-2xl border border-white/[0.08] bg-[#050505]/80 backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:border-[#eab676]/40 hover:shadow-[0_20px_40px_-15px_rgba(234,182,118,0.15)] group" data-cursor="icons">
               <div className="absolute top-0 left-0 w-full px-5 py-3 bg-white/[0.02] border-b border-white/[0.05] flex items-center justify-between">
                 <div className="flex gap-2">
                   <div className="w-2.5 h-2.5 rounded-full bg-white/10 group-hover:bg-[#ff5f56] transition-colors duration-300" />
                   <div className="w-2.5 h-2.5 rounded-full bg-white/10 group-hover:bg-[#ffbd2e] transition-colors duration-300 delay-75" />
                   <div className="w-2.5 h-2.5 rounded-full bg-white/10 group-hover:bg-[#27c93f] transition-colors duration-300 delay-150" />
                 </div>
-                <span className="text-[10px] font-mono text-white/20 group-hover:text-[#fdba74]/50 transition-colors tracking-widest uppercase">sys.02</span>
+                <span className="text-[10px] font-mono text-white/20 group-hover:text-[#eab676]/50 transition-colors tracking-widest uppercase">sys.02</span>
               </div>
               
               <div className="relative z-10">
-                <Code className="w-8 h-8 text-white/30 group-hover:text-[#fdba74] transition-all duration-500 mb-6 group-hover:scale-110 drop-shadow-md" />
+                <Code className="w-8 h-8 text-white/30 group-hover:text-[#eab676] transition-all duration-500 mb-6 group-hover:scale-110 drop-shadow-md" />
                 <h3 className="text-lg font-bold mb-4 tracking-wide text-white/90 group-hover:text-white transition-colors">Web3 & Blockchain</h3>
                 
                 <div className="font-mono text-xs sm:text-sm">
                   <div className="flex items-start gap-3">
-                    <span className="text-[#fdba74]/60 font-bold mt-0.5">{">_"}</span>
+                    <span className="text-[#eab676]/60 font-bold mt-0.5">{">_"}</span>
                     <span className="text-white/50 leading-relaxed group-hover:text-white/80 transition-colors">
                       Project Analysis, Tokenomics, Exchange Listings, Airdrop Hunting, Token Marketing, Community Building.
                     </span>
                   </div>
                 </div>
               </div>
-              <div className="absolute inset-0 bg-gradient-to-br from-[#fdba74]/0 via-[#fdba74]/5 to-[#fdba74]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-br from-[#eab676]/0 via-[#eab676]/5 to-[#eab676]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
             </div>
 
             {/* Card 3 */}
-            <div className="relative overflow-hidden p-8 pt-12 rounded-2xl border border-white/[0.08] bg-[#050505]/80 backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:border-[#fdba74]/40 hover:shadow-[0_20px_40px_-15px_rgba(253,186,116,0.15)] group" data-cursor="icons">
+            <div className="relative overflow-hidden p-8 pt-12 rounded-2xl border border-white/[0.08] bg-[#050505]/80 backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:border-[#eab676]/40 hover:shadow-[0_20px_40px_-15px_rgba(234,182,118,0.15)] group" data-cursor="icons">
               <div className="absolute top-0 left-0 w-full px-5 py-3 bg-white/[0.02] border-b border-white/[0.05] flex items-center justify-between">
                 <div className="flex gap-2">
                   <div className="w-2.5 h-2.5 rounded-full bg-white/10 group-hover:bg-[#ff5f56] transition-colors duration-300" />
                   <div className="w-2.5 h-2.5 rounded-full bg-white/10 group-hover:bg-[#ffbd2e] transition-colors duration-300 delay-75" />
                   <div className="w-2.5 h-2.5 rounded-full bg-white/10 group-hover:bg-[#27c93f] transition-colors duration-300 delay-150" />
                 </div>
-                <span className="text-[10px] font-mono text-white/20 group-hover:text-[#fdba74]/50 transition-colors tracking-widest uppercase">sys.03</span>
+                <span className="text-[10px] font-mono text-white/20 group-hover:text-[#eab676]/50 transition-colors tracking-widest uppercase">sys.03</span>
               </div>
               
               <div className="relative z-10">
-                <LineChart className="w-8 h-8 text-white/30 group-hover:text-[#fdba74] transition-all duration-500 mb-6 group-hover:scale-110 drop-shadow-md" />
+                <LineChart className="w-8 h-8 text-white/30 group-hover:text-[#eab676] transition-all duration-500 mb-6 group-hover:scale-110 drop-shadow-md" />
                 <h3 className="text-lg font-bold mb-4 tracking-wide text-white/90 group-hover:text-white transition-colors">Finance & Trading</h3>
                 
                 <div className="font-mono text-xs sm:text-sm">
                   <div className="flex items-start gap-3">
-                    <span className="text-[#fdba74]/60 font-bold mt-0.5">{">_"}</span>
+                    <span className="text-[#eab676]/60 font-bold mt-0.5">{">_"}</span>
                     <span className="text-white/50 leading-relaxed group-hover:text-white/80 transition-colors">
                       Forex & Crypto Trading, Market Analysis, Risk Management, Portfolio Management.
                     </span>
                   </div>
                 </div>
               </div>
-              <div className="absolute inset-0 bg-gradient-to-br from-[#fdba74]/0 via-[#fdba74]/5 to-[#fdba74]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-br from-[#eab676]/0 via-[#eab676]/5 to-[#eab676]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
             </div>
 
             {/* Card 4 */}
-            <div className="relative overflow-hidden p-8 pt-12 rounded-2xl border border-white/[0.08] bg-[#050505]/80 backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:border-[#fdba74]/40 hover:shadow-[0_20px_40px_-15px_rgba(253,186,116,0.15)] group" data-cursor="icons">
+            <div className="relative overflow-hidden p-8 pt-12 rounded-2xl border border-white/[0.08] bg-[#050505]/80 backdrop-blur-xl transition-all duration-500 hover:-translate-y-2 hover:border-[#eab676]/40 hover:shadow-[0_20px_40px_-15px_rgba(234,182,118,0.15)] group" data-cursor="icons">
               <div className="absolute top-0 left-0 w-full px-5 py-3 bg-white/[0.02] border-b border-white/[0.05] flex items-center justify-between">
                 <div className="flex gap-2">
                   <div className="w-2.5 h-2.5 rounded-full bg-white/10 group-hover:bg-[#ff5f56] transition-colors duration-300" />
                   <div className="w-2.5 h-2.5 rounded-full bg-white/10 group-hover:bg-[#ffbd2e] transition-colors duration-300 delay-75" />
                   <div className="w-2.5 h-2.5 rounded-full bg-white/10 group-hover:bg-[#27c93f] transition-colors duration-300 delay-150" />
                 </div>
-                <span className="text-[10px] font-mono text-white/20 group-hover:text-[#fdba74]/50 transition-colors tracking-widest uppercase">sys.04</span>
+                <span className="text-[10px] font-mono text-white/20 group-hover:text-[#eab676]/50 transition-colors tracking-widest uppercase">sys.04</span>
               </div>
               
               <div className="relative z-10">
-                <Award className="w-8 h-8 text-white/30 group-hover:text-[#fdba74] transition-all duration-500 mb-6 group-hover:scale-110 drop-shadow-md" />
+                <Award className="w-8 h-8 text-white/30 group-hover:text-[#eab676] transition-all duration-500 mb-6 group-hover:scale-110 drop-shadow-md" />
                 <h3 className="text-lg font-bold mb-4 tracking-wide text-white/90 group-hover:text-white transition-colors">Soft Skills</h3>
                 
                 <div className="font-mono text-xs sm:text-sm">
                   <div className="flex items-start gap-3">
-                    <span className="text-[#fdba74]/60 font-bold mt-0.5">{">_"}</span>
+                    <span className="text-[#eab676]/60 font-bold mt-0.5">{">_"}</span>
                     <span className="text-white/50 leading-relaxed group-hover:text-white/80 transition-colors">
                       Leadership, Cross-functional Team Collaboration, Conflict Resolution, Strategic Planning.
                     </span>
                   </div>
                 </div>
               </div>
-              <div className="absolute inset-0 bg-gradient-to-br from-[#fdba74]/0 via-[#fdba74]/5 to-[#fdba74]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+              <div className="absolute inset-0 bg-gradient-to-br from-[#eab676]/0 via-[#eab676]/5 to-[#eab676]/0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
             </div>
           </CardGrid>
         </div>
       </section>
 
       {/* EDUCATION SECTION */}
-      <section id="education" className="relative pt-32 pb-24 sm:pt-40 sm:pb-32 overflow-hidden border-t border-white/10">
+      <section id="education" className="section-border-reveal relative pt-32 pb-24 sm:pt-40 sm:pb-32 overflow-hidden border-t border-white/10">
         {/* Background Video Layer */}
         <video 
           autoPlay 
@@ -592,9 +575,9 @@ export default function App() {
       </section>
 
       {/* FROM THE FEED SECTION */}
-      <section className="relative bg-[#050505] border-t border-white/10 pt-16 pb-32 overflow-hidden">
+      <section className="section-border-reveal relative bg-[#050505] border-t border-white/10 pt-16 pb-32 overflow-hidden">
         {/* Glowing Orb */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[200px] pointer-events-none z-0 blur-3xl" style={{ background: 'radial-gradient(ellipse at center, rgba(245,19,19,0.08) 0%, transparent 70%)' }} />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[200px] pointer-events-none z-0 blur-3xl" style={{ background: 'radial-gradient(ellipse at center, rgba(234, 182, 118,0.08) 0%, transparent 70%)' }} />
 
         {/* CSS Keyframes for Marquee */}
         <style>{`
@@ -620,7 +603,7 @@ export default function App() {
                   href={post.link} 
                   target="_blank" 
                   rel="noreferrer"
-                  className="absolute top-0 left-0 w-full flex flex-col p-5 rounded-xl bg-black/80 border border-white/10 backdrop-blur-md cursor-pointer transition-all duration-500 ease-out hover:border-white/30 hover:scale-[1.03] hover:shadow-[0_20px_40px_rgba(0,0,0,0.8),0_0_20px_rgba(245,19,19,0.15)] z-10 hover:z-50 overflow-hidden min-h-[11rem] max-h-[11rem] hover:max-h-[500px]"
+                  className="absolute top-0 left-0 w-full flex flex-col p-5 rounded-xl bg-black/80 border border-white/10 backdrop-blur-md cursor-pointer transition-all duration-500 ease-out hover:border-white/30 hover:scale-[1.03] hover:shadow-[0_20px_40px_rgba(0,0,0,0.8),0_0_20px_rgba(234, 182, 118, 0.15)] z-10 hover:z-50 overflow-hidden min-h-[11rem] max-h-[11rem] hover:max-h-[500px]"
                 >
                   {/* TOP ROW */}
                   <div className="flex items-center justify-between shrink-0">
@@ -678,24 +661,23 @@ export default function App() {
           
           {/* Social Links */}
           <div className="flex flex-wrap justify-center gap-4 sm:gap-6 mb-32">
-            <a href="mailto:saadahsanmain@gmail.com" data-cursor="icons" className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 transition-all duration-300 text-sm font-medium backdrop-blur-md hover:scale-105 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+            <a href="mailto:saadahsanmain@gmail.com" data-cursor="icons" className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 transition-all duration-300 text-sm font-medium backdrop-blur-md hover:scale-105 hover:shadow-[0_0_20px_rgba(255,255,255,0.08)] active:scale-95">
               <Mail className="w-5 h-5 text-white/80" /> <span className="tracking-wide">Email Me</span>
             </a>
-            <a href="https://t.me/StevenO_o" target="_blank" rel="noreferrer" data-cursor="icons" className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 transition-all duration-300 text-sm font-medium backdrop-blur-md hover:scale-105 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+            <a href="https://t.me/StevenO_o" target="_blank" rel="noreferrer" data-cursor="icons" className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 transition-all duration-300 text-sm font-medium backdrop-blur-md hover:scale-105 hover:shadow-[0_0_20px_rgba(255,255,255,0.08)] active:scale-95">
               <Send className="w-5 h-5 text-white/80" /> <span className="tracking-wide">Telegram</span>
             </a>
-            <a href="https://linkedin.com/in/saad-al-ahsan" target="_blank" rel="noreferrer" data-cursor="icons" className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 transition-all duration-300 text-sm font-medium backdrop-blur-md hover:scale-105 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+            <a href="https://linkedin.com/in/saad-al-ahsan" target="_blank" rel="noreferrer" data-cursor="icons" className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 transition-all duration-300 text-sm font-medium backdrop-blur-md hover:scale-105 hover:shadow-[0_0_20px_rgba(255,255,255,0.08)] active:scale-95">
               <Linkedin className="w-5 h-5 text-white/80" /> <span className="tracking-wide">LinkedIn</span>
             </a>
-            <a href="https://github.com/SAADALAHSAN" target="_blank" rel="noreferrer" data-cursor="icons" className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 transition-all duration-300 text-sm font-medium backdrop-blur-md hover:scale-105 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)]">
+            <a href="https://github.com/SAADALAHSAN" target="_blank" rel="noreferrer" data-cursor="icons" className="inline-flex items-center gap-3 px-8 py-4 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 transition-all duration-300 text-sm font-medium backdrop-blur-md hover:scale-105 hover:shadow-[0_0_20px_rgba(255,255,255,0.08)] active:scale-95">
               <Github className="w-5 h-5 text-white/80" /> <span className="tracking-wide">GitHub</span>
             </a>
           </div>
 
           {/* Bottom bar */}
-          <div className="w-full flex flex-col sm:flex-row justify-between items-center text-xs font-mono text-white/30 border-t border-white/[0.06] pt-8">
+          <div className="w-full flex flex-col sm:flex-row justify-center items-center text-xs font-mono text-white/30 border-t border-white/[0.06] pt-8">
             <p>© {new Date().getFullYear()} Saad Al Ahsan. All rights reserved.</p>
-            <p className="mt-4 sm:mt-0">Based in Dhaka, Bangladesh</p>
           </div>
         </div>
       </footer>

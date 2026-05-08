@@ -70,20 +70,23 @@ export const WordsPullUpMultiStyle = ({ segments, className = "" }) => {
 };
 
 /**
- * 3. ScrollAnimatedText (Scroll-Linked Character Fade)
+ * 3. ScrollAnimatedText (Scroll-Linked Word Fade)
  * Purpose: For body paragraphs that reveal progressively.
+ * BUG 6 FIX: Switched from per-character to per-word animation.
+ *   Per-character created 200+ motion.spans causing scroll jitter.
+ *   Per-word reduces animated elements to ~30 per paragraph.
  */
-const AnimatedChar = ({ char, index, totalChars, scrollYProgress }) => {
-  const charProgress = index / totalChars;
+const AnimatedWord = ({ word, index, totalWords, scrollYProgress }) => {
+  const wordProgress = index / totalWords;
   const opacity = useTransform(
     scrollYProgress,
-    [charProgress - 0.1, charProgress + 0.05],
+    [wordProgress - 0.1, wordProgress + 0.05],
     [0.2, 1]
   );
 
   return (
-    <motion.span style={{ opacity }} className="inline-block">
-      {char}
+    <motion.span style={{ opacity }} className="inline-block mr-[0.25em] mb-[0.1em]">
+      {word}
     </motion.span>
   );
 };
@@ -96,30 +99,19 @@ export const ScrollAnimatedText = ({ text, className = "" }) => {
   });
 
   const words = text.split(' ');
-  let charIndexCounter = 0;
-  const totalChars = text.length;
+  const totalWords = words.length;
 
   return (
     <div ref={containerRef} className={`${className} leading-relaxed`}>
-      {words.map((word, wordIdx) => {
-        const characters = word.split('');
-        return (
-          <span key={wordIdx} className="inline-flex mr-[0.25em] mb-[0.1em] whitespace-nowrap">
-            {characters.map((char, charIdx) => {
-              const globalIndex = charIndexCounter++;
-              return (
-                <AnimatedChar
-                  key={`${wordIdx}-${charIdx}`}
-                  char={char}
-                  index={globalIndex}
-                  totalChars={totalChars}
-                  scrollYProgress={scrollYProgress}
-                />
-              );
-            })}
-          </span>
-        );
-      })}
+      {words.map((word, wordIdx) => (
+        <AnimatedWord
+          key={wordIdx}
+          word={word}
+          index={wordIdx}
+          totalWords={totalWords}
+          scrollYProgress={scrollYProgress}
+        />
+      ))}
     </div>
   );
 };

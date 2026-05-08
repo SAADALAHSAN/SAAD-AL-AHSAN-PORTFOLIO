@@ -1,7 +1,12 @@
 import React, { useEffect, useRef } from "react";
 import "./Cursor.css";
-import gsap from "gsap";
 
+/**
+ * BUG 3 FIX: Removed gsap.to() from inside the RAF loop.
+ *   The old code called gsap.to() every animation frame (60/s),
+ *   creating 60 new GSAP tweens per second — serious perf lag.
+ *   Now using direct DOM style.transform for the smooth follow.
+ */
 const Cursor = () => {
   const cursorRef = useRef(null);
   
@@ -25,7 +30,8 @@ const Cursor = () => {
         const delay = 6;
         cursorPos.x += (mousePos.x - cursorPos.x) / delay;
         cursorPos.y += (mousePos.y - cursorPos.y) / delay;
-        gsap.to(cursor, { x: cursorPos.x, y: cursorPos.y, duration: 0.1 });
+        // Direct DOM transform instead of gsap.to() — no tween overhead
+        cursor.style.transform = `translate(${cursorPos.x}px, ${cursorPos.y}px)`;
       }
       animationFrameId = requestAnimationFrame(loop);
     };
@@ -38,7 +44,8 @@ const Cursor = () => {
       const rect = element.getBoundingClientRect();
       if (element.dataset.cursor === "icons") {
         cursor.classList.add("cursor-icons");
-        gsap.to(cursor, { x: rect.left, y: rect.top, duration: 0.1 });
+        // Keep direct positioning for snap-to-icon hover
+        cursor.style.transform = `translate(${rect.left}px, ${rect.top}px)`;
         cursor.style.setProperty("--cursorH", `${rect.height}px`);
         hover = true;
       }
